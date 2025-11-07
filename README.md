@@ -15,7 +15,6 @@ Generate personalized certificates from image or PDF templates and name lists. S
 
 ## Getting Started
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and development instructions.
 
 ## License
 

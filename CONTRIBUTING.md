@@ -11,3 +11,4 @@ We welcome PRs and issues! Please:
 - Commit messages should be descriptive
 
 Thank you!
+ -- From @Facelessism

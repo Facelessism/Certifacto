@@ -1,10 +1,10 @@
-# Free Certificate Generator
+### Free Certificate Generator
 
-Generate personalized certificates from image or PDF templates and name lists. Supports advanced styling, bulk email sending, logos, signatures, responsive UI, and more!
+Generate personalized certificates from image(png) or PDF templates and name lists. Supports advanced styling, bulk email sending, logos, signatures, responsive UI, and more!
 
-## Features
+### Features
 
-- Upload image/PDF templates
+- Upload image(png)/PDF templates
 - Upload name lists (CSV, TXT, JSON, XLS/XLSX/ODS)
 - Advanced styling: font, color, outline, shadow, rotation, etc.
 - Add logo, signature, and footer
@@ -13,10 +13,7 @@ Generate personalized certificates from image or PDF templates and name lists. S
 - Responsive and accessible UI
 - Open source
 
-## Getting Started
+### Getting Started
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and development instructions.
 
-## License
-
-MIT

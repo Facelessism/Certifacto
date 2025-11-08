@@ -1,169 +1,172 @@
 const fs = require('fs');
+const path = require('path');
 const sharp = require('sharp');
 const archiver = require('archiver');
-const path = require('path');
 const { extractNames } = require('./extractNames');
 const { generatePDFCertificate } = require('./pdfCertificate');
 const { sendCertificateEmail } = require('./emailSender');
 
-function getFontFaceSVG(fontOptions) {
-  if (fontOptions.fontBase64 && fontOptions.family && fontOptions.fontExt) {
-    return `
-      <style type="text/css">
-        @font-face {
-          font-family: '${fontOptions.family}';
-          src: url('data:font/${fontOptions.fontExt};charset=utf-8;base64,${fontOptions.fontBase64}');
-        }
-      </style>
-    `;
-  }
-  return '';
-}
+function getSVGText({ name, position, fontOptions, boxWidth = 1200, boxHeight = 900, footerText }) {
+  const family = fontOptions.family || 'Arial';
+  const size = fontOptions.size || 48;
+  const color = fontOptions.color || '#222';
+  const weight = fontOptions.weight || 'normal';
+  const alignment = fontOptions.alignment || 'middle';
+  const outlineColor = fontOptions.outlineColor || 'none';
+  const outlineWidth = fontOptions.outlineWidth || 0;
 
-function getSVGText({
-  name,
-  position,
-  fontOptions,
-  boxWidth = 1000,
-  boxHeight = 200,
-  logoUrl,
-  signatureUrl,
-  footerText
-}) {
-  const {
-    family = 'Arial',
-    size = 48,
-    color = '#222',
-    weight = 'normal',
-    alignment = 'middle',
-    outlineColor = 'none',
-    outlineWidth = 0,
-    shadow = false,
-    rotation = 0,
-    letterSpacing = 'normal'
-  } = fontOptions;
-
-  const letterSpacingAttr = letterSpacing === 'normal' ? '' : `letter-spacing="${letterSpacing}"`;
-  const shadowFilter = shadow
-    ? `<filter id="shadow"><feDropShadow dx="4" dy="4" stdDeviation="2" flood-color="#222" /></filter>`
-    : '';
-
-  let textAnchor = 'middle';
-  if (alignment === 'left') textAnchor = 'start';
-  if (alignment === 'right') textAnchor = 'end';
-
+  const textAnchor = alignment === 'left' ? 'start' : alignment === 'right' ? 'end' : 'middle';
   const strokeAttr = outlineWidth > 0 ? `stroke="${outlineColor}" stroke-width="${outlineWidth}"` : '';
-  const fontFamilyAttr = family ? `font-family="${family}"` : '';
-  const rotateAttr = rotation
-    ? `transform="rotate(${rotation},${position.x},${position.y})"`
-    : '';
-  const fontFace = getFontFaceSVG(fontOptions);
 
-  // For simplicity, logo/signature/footers are not shown in preview SVG, but are drawn in final image
   return `
     <svg width="${boxWidth}" height="${boxHeight}">
-      <defs>
-        ${fontFace}
-        ${shadowFilter}
-      </defs>
-      <text
-        x="${position.x}"
-        y="${position.y}"
-        font-size="${size}"
-        ${fontFamilyAttr}
-        font-weight="${weight}"
-        fill="${color}"
-        text-anchor="${textAnchor}"
-        ${strokeAttr}
-        ${letterSpacingAttr}
-        ${rotateAttr}
-        ${shadow ? 'filter="url(#shadow)"' : ''}
-        alignment-baseline="middle"
-        dominant-baseline="middle"
-      >${name}</text>
-      <text
-        x="${boxWidth / 2}"
-        y="${boxHeight - 30}"
-        font-size="18"
-        fill="#222"
-        text-anchor="middle"
-      >${footerText || ''}</text>
+      <text x="${position.x}" y="${position.y}" font-size="${size}" font-family="${family}" font-weight="${weight}" fill="${color}" text-anchor="${textAnchor}" ${strokeAttr} alignment-baseline="middle" dominant-baseline="middle">${name}</text>
+      <text x="${boxWidth/2}" y="${boxHeight - 30}" font-size="18" fill="#222" text-anchor="middle">${footerText || ''}</text>
     </svg>
   `;
 }
 
-async function generateCertificates(
-  templateFile,
-  namesFile,
-  position,
-  fontOptions,
-  logoFile,
-  signatureFile,
-  footerText,
-  sendEmails,
-  smtpConfig
-) {
+async function generateCertificates(templateFile, namesFile, position, fontOptions, logoFile, signatureFile, footerText, sendEmails, smtpConfig) {
   const names = await extractNames(namesFile);
-  const ext = path.extname(templateFile.originalname).toLowerCase();
+  if (!names?.length) throw new Error('No names extracted from uploaded file');
 
+  const ext = path.extname(templateFile.originalname).toLowerCase();
   const zipPath = path.join('uploads', `certificates_${Date.now()}.zip`);
   const output = fs.createWriteStream(zipPath);
   const archive = archiver('zip');
   archive.pipe(output);
 
-  for (const entry of names) {
-    const { name, email } = entry;
+  for (const { name, email } of names) {
+    if (!name) continue;
+
     let certBuffer, filename;
     if (ext === '.pdf') {
-      certBuffer = await generatePDFCertificate({
-        templatePath: templateFile.path,
-        name,
-        position,
-        fontOptions,
-        logoPath: logoFile && logoFile.path,
-        signaturePath: signatureFile && signatureFile.path,
-        footerText
-      });
+      certBuffer = await generatePDFCertificate({ templatePath: templateFile.path, name, position, fontOptions, logoPath: logoFile?.path, signaturePath: signatureFile?.path, footerText });
       filename = `${name}.pdf`;
     } else {
-      // PNG/JPG template
-      const svgText = getSVGText({
-        name,
-        position,
-        fontOptions,
-        boxWidth: 1200,
-        boxHeight: 900,
-        logoUrl: logoFile && logoFile.path,
-        signatureUrl: signatureFile && signatureFile.path,
-        footerText
-      });
-      let img = sharp(templateFile.path)
-        .composite([{ input: Buffer.from(svgText), top: 0, left: 0 }]);
-      if (logoFile) {
-        img = img.composite([{ input: logoFile.path, top: 20, left: 20 }]);
+      const svgText = getSVGText({ name, position, fontOptions, footerText });
+      let img = sharp(templateFile.path).composite([{ input: Buffer.from(svgText), top: 0, left: 0 }]);
+      if (logoFile?.path && fs.existsSync(logoFile.path)) img = img.composite([{ input: logoFile.path, top: 20, left: 20 }]);
+      if (signatureFile?.path && fs.existsSync(signatureFile.path)) img = img.composite([{ input: signatureFile.path, top: 820, left: 1080 }]);
+      certBuffer = await img.png().toBuffer();const fs = require('fs');
+const path = require('path');
+const sharp = require('sharp');
+const archiver = require('archiver');
+const { extractNames } = require('./extractNames');
+const { generatePDFCertificate } = require('./pdfCertificate');
+const { sendCertificateEmail } = require('./emailSender');
+
+function getSVGText({ name, position, fontOptions, boxWidth = 1200, boxHeight = 900, footerText }) {
+  const family = fontOptions?.family || 'Arial';
+  const size = fontOptions?.size || 48;
+  const color = fontOptions?.color || '#222';
+  const weight = fontOptions?.weight || 'normal';
+  const alignment = fontOptions?.alignment || 'middle';
+  const outlineColor = fontOptions?.outlineColor || 'none';
+  const outlineWidth = fontOptions?.outlineWidth || 0;
+
+  const textAnchor = alignment === 'left' ? 'start' : alignment === 'right' ? 'end' : 'middle';
+  const strokeAttr = outlineWidth > 0 ? `stroke="${outlineColor}" stroke-width="${outlineWidth}"` : '';
+
+  return `
+    <svg width="${boxWidth}" height="${boxHeight}">
+      <text 
+        x="${position.x}" y="${position.y}" 
+        font-size="${size}" font-family="${family}" font-weight="${weight}" fill="${color}" 
+        text-anchor="${textAnchor}" ${strokeAttr} alignment-baseline="middle" dominant-baseline="middle"
+      >${name}</text>
+      <text 
+        x="${boxWidth / 2}" y="${boxHeight - 30}" 
+        font-size="18" fill="#222" text-anchor="middle"
+      >${footerText || ''}</text>
+    </svg>
+  `;
+}
+
+async function generateCertificates(templateFile, namesFile, position, fontOptions, logoFile, signatureFile, footerText, sendEmails, smtpConfig) {
+  if (!fs.existsSync(templateFile.path)) throw new Error('Template file not found');
+  if (!fs.existsSync(namesFile.path)) throw new Error('Names file not found');
+
+  const names = await extractNames(namesFile);
+  if (!names?.length) throw new Error('No valid names found in uploaded file');
+
+  const ext = path.extname(templateFile.originalname).toLowerCase();
+  const zipPath = path.join('uploads', `certificates_${Date.now()}.zip`);
+  const output = fs.createWriteStream(zipPath);
+  const archive = archiver('zip');
+  archive.pipe(output);
+
+  for (const { name, email } of names) {
+    if (!name?.trim()) continue;
+
+    let certBuffer, filename;
+    try {
+      if (ext === '.pdf') {
+        certBuffer = await generatePDFCertificate({
+          templatePath: templateFile.path,
+          name,
+          position,
+          fontOptions,
+          logoPath: logoFile?.path,
+          signaturePath: signatureFile?.path,
+          footerText
+        });
+        filename = `${name}.pdf`;
+      } else {
+        const svgText = getSVGText({ name, position, fontOptions, footerText });
+        let img = sharp(templateFile.path).composite([{ input: Buffer.from(svgText), top: 0, left: 0 }]);
+
+        if (logoFile?.path && fs.existsSync(logoFile.path)) img = img.composite([{ input: logoFile.path, top: 20, left: 20 }]);
+        if (signatureFile?.path && fs.existsSync(signatureFile.path)) img = img.composite([{ input: signatureFile.path, top: 820, left: 1080 }]);
+
+        certBuffer = await img.png().toBuffer();
+        filename = `${name}.png`;
       }
-      if (signatureFile) {
-        img = img.composite([{ input: signatureFile.path, top: 820, left: 1080 }]);
+
+      if (!certBuffer || !certBuffer.length) continue;
+
+      archive.append(certBuffer, { name: filename });
+
+      if (sendEmails && email?.trim()) {
+        try {
+          await sendCertificateEmail({ to: email, name, certBuffer, filename, smtpConfig });
+        } catch (err) {
+          console.error(`Failed to send email to ${email}:`, err);
+        }
       }
-      certBuffer = await img.png().toBuffer();
+    } catch (err) {
+      console.error(`Failed to generate certificate for ${name}:`, err);
+    }
+  }
+
+  await new Promise((resolve, reject) => {
+    output.on('close', resolve);
+    archive.on('error', reject);
+    archive.finalize();
+  });
+
+  return zipPath;
+}
+
+module.exports = { generateCertificates };
+
       filename = `${name}.png`;
     }
 
     archive.append(certBuffer, { name: filename });
 
-    // Send email if enabled and email is provided
     if (sendEmails && email) {
-      await sendCertificateEmail({
-        to: email,
-        name,
-        certBuffer,
-        filename,
-        smtpConfig
-      });
+      try { await sendCertificateEmail({ to: email, name, certBuffer, filename, smtpConfig }); } 
+      catch (err) { console.error(`Failed to send email to ${email}:`, err); }
     }
   }
 
-  await archive.finalize();
+  await new Promise((resolve, reject) => {
+    output.on('close', resolve);
+    archive.on('error', reject);
+    archive.finalize();
+  });
+
   return zipPath;
 }
 

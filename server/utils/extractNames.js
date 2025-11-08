@@ -12,35 +12,48 @@ async function extractNames(file) {
       fs.createReadStream(file.path)
         .pipe(csv())
         .on('data', data => {
-          if (data.name) names.push({ name: data.name, email: data.email });
+          const name = data.name || data.Name || data.fullName || data['Full Name'];
+          const email = data.email || data.Email || '';
+          if (name?.trim()) names.push({ name: name.trim(), email: email.trim() });
         })
         .on('end', resolve)
         .on('error', reject);
     });
-    return names;
   } else if (ext === 'txt') {
     names = fs.readFileSync(file.path, 'utf8')
       .split('\n')
       .map(line => ({ name: line.trim(), email: "" }))
-      .filter(e => e.name.length > 0);
-    return names;
+      .filter(e => e.name);
   } else if (ext === 'json') {
     const json = JSON.parse(fs.readFileSync(file.path, 'utf8'));
     if (Array.isArray(json)) {
-      if (typeof json[0] === "string") return json.map(n => ({ name: n, email: "" }));
-      if (typeof json[0] === "object") return json.map(e => ({ name: e.name, email: e.email || "" }));
+      names = json.map(item => {
+        if (typeof item === 'string') return { name: item.trim(), email: "" };
+        if (typeof item === 'object') return { name: item.name?.trim(), email: item.email?.trim() || "" };
+        return null;
+      }).filter(Boolean);
     } else if (json.names && Array.isArray(json.names)) {
-      return json.names.map(n => ({ name: n, email: "" }));
+      names = json.names.map(n => ({ name: n.trim(), email: "" }));
     }
-    return [];
   } else if (['xls', 'xlsx', 'ods'].includes(ext)) {
     const workbook = xlsx.readFile(file.path);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = xlsx.utils.sheet_to_json(sheet);
-    return rows.map(row => ({ name: row.name || row[0], email: row.email || "" })).filter(e => e.name);
+    const rows = xlsx.utils.sheet_to_json(sheet, { defval: '' });
+    names = rows.map(row => {
+      const keys = Object.keys(row);
+      const name = row.name || row.Name || row[keys[0]];
+      const email = row.email || row.Email || row[keys[1]] || '';
+      return name?.trim() ? { name: name.trim(), email: email.trim() } : null;
+    }).filter(Boolean);
   } else {
     throw new Error('Unsupported file format');
   }
+
+  if (!names.length) {
+    console.error('No valid names found in file:', file.originalname);
+  }
+
+  return names;
 }
 
 module.exports = { extractNames };

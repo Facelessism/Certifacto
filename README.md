@@ -15,5 +15,10 @@ Generate personalized certificates from image(png) or PDF templates and name lis
 
 ### Getting Started
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and development instructions.
 
+<<<<<<< HEAD
+=======
+## License
+
+MIT
+>>>>>>> f3e0630fad0150b967e01303213af4f2e935cad7

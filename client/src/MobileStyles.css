@@ -67,6 +67,7 @@ background-color: rgba(50, 50, 50, 0.6);
 color: #e0e0e0;
 font-size: 0.95rem;
 backdrop-filter: blur(4px);
+-webkit-backdrop-filter: blur(4px);
 transition: all 0.3s ease;
 }
 

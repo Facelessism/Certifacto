@@ -36,21 +36,34 @@ export default function CertificateForm() {
   const handleFileChange = (setter) => (e) => {
     const file = e.target.files[0];
     setter(file);
-    if (setter === setTemplate && file) setPreviewUrl(URL.createObjectURL(file));
-  };
+    if (setter === setTemplate && file) {
+      if (file.type === "application/pdf") {
+        alert("PDF templates cannot be previewed. Upload PNG/JPG.");
+        return;
+      }
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+
+      return () => URL.revokeObjectURL(url);
+    }
+
+    };
 
   const handleCanvasClick = (e) => {
-    const rect = e.target.getBoundingClientRect();
     setPosition({
-      x: Math.round((e.nativeEvent.offsetX / rect.width) * 1200),
-      y: Math.round((e.nativeEvent.offsetY / rect.height) * 900)
+      x: Math.round(e.nativeEvent.offsetX),
+      y: Math.round(e.nativeEvent.offsetY)
     });
   };
 
   const handleFontOptionChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFontOptions(prev => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+    const { name, value, checked, type } = e.target;
+    setFontOptions(prev => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value
+    }));
   };
+
   const handleSmtpChange = (e) => {
     const { name, value } = e.target;
     setSmtpConfig(prev => ({ ...prev, [name]: value }));
@@ -88,7 +101,7 @@ export default function CertificateForm() {
         ctx.shadowOffsetY = 4;
       }
       if (fontOptions.letterSpacing === "normal") {
-        ctx.fillText("NAME HERE", position.x, position.y);
+        ctx.fillText("NAME HERE", 0, 0);
       } else {
         let x = position.x;
         const spacing = Number(fontOptions.letterSpacing);

@@ -18,7 +18,45 @@ Generate personalized certificates from image(png) or PDF templates and name lis
 
 <<<<<<< HEAD
 =======
+
+## Project Structure 
+```bash
+├── CODE_OF_CONDUCT.md
+├── LICENSE
+├── README.md
+├── certificate_pdf.py
+├── client
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── public
+│   │   └── index.html
+│   └── src
+│       ├── App.js
+│       ├── CertificateForm.css
+│       ├── CertificateForm.js
+│       ├── CertificatePreview.js
+│       ├── MobileStyles.css
+│       └── index.js
+├── generateCertificates.js
+├── name.txt
+├── server
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── routes
+│   │   └── certificate.js
+│   ├── server.js
+│   ├── uploads
+│   │   ├── certificates_1765379569095.zip
+│   │   ├── certificates_1765379593391.zip
+│   │   └── certificates_1765379759767.zip
+│   └── utils
+│       ├── emailSender.js
+│       ├── extractNames.js
+│       ├── generateCertificates.js
+│       └── pdfCertificate.js
+└── template.png
+```
+
 ## License
 
-MIT
->>>>>>> f3e0630fad0150b967e01303213af4f2e935cad7
+MIT License 

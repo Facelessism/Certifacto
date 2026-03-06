@@ -1,8 +1,8 @@
-### Free Certificate Generator
+# Free Certificate Generator
 
 Generate personalized certificates from image(png) or PDF templates and name lists. Supports advanced styling, bulk email sending, logos, signatures, responsive UI, and more!
 
-### Features
+## Features
 
 - Upload image(png)/PDF templates
 - Upload name lists (CSV, TXT, JSON, XLS/XLSX/ODS)
@@ -13,11 +13,37 @@ Generate personalized certificates from image(png) or PDF templates and name lis
 - Responsive and accessible UI
 - Open source
 
-### Getting Started
+## Getting Started
 
+Follow these steps to run the project locally.
 
-<<<<<<< HEAD
-=======
+### 1. Clone your forked repository
+
+```bash
+git clone https://github.com/your-name/Certifacto.git
+cd Certifacto
+```
+### 2. Install frontend dependencies
+```bash
+cd client
+npm install
+```
+### 3. Install backend dependencies
+```bash
+cd server
+npm install
+```
+### 4. Start the server
+```bash
+npm start
+```
+### 5. Start frontend side in another terminal 
+```bash
+cd client
+npm start
+```
+
+---
 
 ## Project Structure 
 ```bash

@@ -69,6 +69,10 @@ router.post(
         sendEmails,
         smtpConfig
       );
+      
+        res.on('close', () => {
+        safeUnlink(zipPath);
+        });
 
       res.download(zipPath, 'certificates.zip', (err) => {
         if (err) console.error('Download error:', err);
@@ -79,7 +83,6 @@ router.post(
       res.status(500).json({ error: err.message || 'Certificate generation failed.' });
     } finally {
       [templateFile, namesFile, fontFile, logoFile, signatureFile].forEach(f => safeUnlink(f?.path));
-      safeUnlink(zipPath);
     }
   }
 );

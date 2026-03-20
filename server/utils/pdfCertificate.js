@@ -11,14 +11,18 @@ async function generatePDFCertificate({
   footerText
 }) {
   if (!fs.existsSync(templatePath)) throw new Error('Template file not found');
+  if (!name?.trim()) throw new Error('Invalid name');
+  if (!position || typeof position.x !== 'number' || typeof position.y !== 'number') {
+    throw new Error('Invalid position');
+  }
 
   const templateBytes = fs.readFileSync(templatePath);
   const pdfDoc = await PDFDocument.load(templateBytes);
   const page = pdfDoc.getPage(0);
 
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontSize = fontOptions.size || 36;
-  const textColor = fontOptions.color && Array.isArray(fontOptions.color) && fontOptions.color.length === 3
+  const fontSize = fontOptions?.size || 36;
+  const textColor = Array.isArray(fontOptions?.color) && fontOptions.color.length === 3
     ? rgb(fontOptions.color[0], fontOptions.color[1], fontOptions.color[2])
     : rgb(0, 0, 0);
 
@@ -31,36 +35,45 @@ async function generatePDFCertificate({
   });
 
   if (logoPath && fs.existsSync(logoPath)) {
-    const logoBytes = fs.readFileSync(logoPath);
-    const logoImg = logoPath.toLowerCase().endsWith('.png')
-      ? await pdfDoc.embedPng(logoBytes)
-      : await pdfDoc.embedJpg(logoBytes);
+    try {
+      const logoBytes = fs.readFileSync(logoPath);
+      const logoImg = logoPath.toLowerCase().endsWith('.png')
+        ? await pdfDoc.embedPng(logoBytes)
+        : await pdfDoc.embedJpg(logoBytes);
 
-    page.drawImage(logoImg, {
-      x: 20,
-      y: page.getHeight() - 100,
-      width: 80,
-      height: 80
-    });
+      page.drawImage(logoImg, {
+        x: 20,
+        y: page.getHeight() - 100,
+        width: 80,
+        height: 80
+      });
+    } catch (err) {
+      console.error('Logo embed failed:', err);
+    }
   }
 
   if (signaturePath && fs.existsSync(signaturePath)) {
-    const sigBytes = fs.readFileSync(signaturePath);
-    const sigImg = signaturePath.toLowerCase().endsWith('.png')
-      ? await pdfDoc.embedPng(sigBytes)
-      : await pdfDoc.embedJpg(sigBytes);
+    try {
+      const sigBytes = fs.readFileSync(signaturePath);
+      const sigImg = signaturePath.toLowerCase().endsWith('.png')
+        ? await pdfDoc.embedPng(sigBytes)
+        : await pdfDoc.embedJpg(sigBytes);
 
-    page.drawImage(sigImg, {
-      x: page.getWidth() - 120,
-      y: 40,
-      width: 100,
-      height: 50
-    });
+      page.drawImage(sigImg, {
+        x: page.getWidth() - 120,
+        y: 40,
+        width: 100,
+        height: 50
+      });
+    } catch (err) {
+      console.error('Signature embed failed:', err);
+    }
   }
 
   if (footerText) {
     const footerFontSize = 14;
     const textWidth = font.widthOfTextAtSize(footerText, footerFontSize);
+
     page.drawText(footerText, {
       x: (page.getWidth() - textWidth) / 2,
       y: 30,
@@ -70,7 +83,13 @@ async function generatePDFCertificate({
     });
   }
 
-  return await pdfDoc.save();
+  const pdfBytes = await pdfDoc.save();
+
+  if (!pdfBytes || !pdfBytes.length) {
+    throw new Error('Generated empty PDF buffer');
+  }
+
+  return pdfBytes;
 }
 
 module.exports = { generatePDFCertificate };
